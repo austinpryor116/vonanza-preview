@@ -1,0 +1,104 @@
+# Vonanza Construction: server rules for the live site on Hostinger (Apache / LiteSpeed).
+# Ignored by hosts that don't read .htaccess (the GitHub Pages portal preview).
+
+Options -Indexes -MultiViews
+DirectoryIndex index.html
+ErrorDocument 404 /404.html
+ErrorDocument 410 /404.html
+
+<IfModule mod_rewrite.c>
+RewriteEngine On
+
+# ------------------------------------------------------------------------------------------
+# One address for everyone and for Google: https://vonanza.com (no www)
+# ------------------------------------------------------------------------------------------
+RewriteCond %{HTTPS} !=on
+RewriteCond %{HTTP:X-Forwarded-Proto} !https
+RewriteCond %{HTTP_HOST} ^(www\.)?vonanza\.com$ [NC]
+RewriteRule ^ https://vonanza.com%{REQUEST_URI} [R=301,L,NE]
+
+RewriteCond %{HTTP_HOST} ^www\.vonanza\.com$ [NC]
+RewriteRule ^ https://vonanza.com%{REQUEST_URI} [R=301,L,NE]
+
+# ------------------------------------------------------------------------------------------
+# Addresses from the previous WordPress site that Google has indexed.
+# 301 = moved (keeps the page's search ranking); 410 = gone for good (Google drops it quickly).
+# ------------------------------------------------------------------------------------------
+
+# Old WordPress ?p=123 / ?page_id=123 links
+RewriteCond %{QUERY_STRING} (^|&)(p|page_id|cat|tag|author)=
+RewriteRule ^$ https://vonanza.com/? [R=301,L]
+
+# Pages
+RewriteRule ^about-us/?$ /leadership/ [R=301,L]
+RewriteRule ^contact/?$ /consult/ [R=301,L]
+RewriteRule ^(projects|project)/?$ /portfolio/ [R=301,L]
+RewriteRule ^(our-services|service)/?$ /environments/ [R=301,L]
+
+# Projects that exist on the new site
+RewriteRule ^project/west-texas-pain/?$ /portfolio/west-texas-pain-management/ [R=301,L]
+RewriteRule ^project/irving-schwartz-library/?$ /portfolio/irving-schwartz-library/ [R=301,L]
+RewriteRule ^project/las-palmas-medical-center/?$ /portfolio/las-palmas-medical-center/ [R=301,L]
+# All other old project pages go to the project list
+RewriteRule ^project/[^/]+/?$ /portfolio/ [R=301,L]
+
+# Old service pages
+RewriteRule ^service/(consultancy|land-minning)/?$ /execution/ [R=301,L]
+RewriteRule ^service/[^/]+/?$ /environments/ [R=301,L]
+
+# Retired: theme demo pages (sample "team members"), blog posts, archives, feeds and WordPress internals
+RewriteRule ^(ts-team|author|category|tag)(/.*)?$ - [G,L]
+RewriteRule ^(blog|404-2|caring-for-construction-more-experience|support-development-for-more-experience-[0-9]+)/?$ - [G,L]
+RewriteRule ^(feed|comments/feed)/?$ - [G,L]
+RewriteRule ^(.+/)?feed/?$ - [G,L]
+RewriteRule ^(wp-admin|wp-content|wp-includes|wp-json)(/.*)?$ - [G,L]
+RewriteRule ^(xmlrpc\.php|wp-login\.php|wp-cron\.php|wp-sitemap\.xml|sitemap_index\.xml|[a-z_-]+-sitemap\.xml)$ - [G,L]
+</IfModule>
+
+# ------------------------------------------------------------------------------------------
+# Never serve hidden files or project files that are not meant for the web
+# ------------------------------------------------------------------------------------------
+<FilesMatch "^\.|\.(md|log|ini|sh|bak|sql|lock|json\.example)$">
+    Require all denied
+</FilesMatch>
+<Files ".htaccess">
+    Require all denied
+</Files>
+
+# ------------------------------------------------------------------------------------------
+# Security headers
+# ------------------------------------------------------------------------------------------
+<IfModule mod_headers.c>
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+    Header always set X-Frame-Options "SAMEORIGIN"
+    Header always set Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=()"
+    Header always set Strict-Transport-Security "max-age=31536000" "expr=%{HTTPS} == 'on'"
+</IfModule>
+
+# ------------------------------------------------------------------------------------------
+# Caching: build files have unique names and can be cached for a year; pages always revalidate
+# so visitors see updates straight away.
+# ------------------------------------------------------------------------------------------
+<IfModule mod_headers.c>
+    <FilesMatch "\.(html|xml|txt)$">
+        Header set Cache-Control "no-cache"
+    </FilesMatch>
+    <FilesMatch "\.(jpg|jpeg|png|webp|avif|gif|svg|ico|mp4|webm)$">
+        Header set Cache-Control "public, max-age=2592000"
+    </FilesMatch>
+    <FilesMatch "\.(woff2?)$">
+        Header set Cache-Control "public, max-age=31536000, immutable"
+    </FilesMatch>
+</IfModule>
+<IfModule mod_rewrite.c>
+    RewriteRule ^_next/static/ - [E=VZ_IMMUTABLE:1]
+</IfModule>
+<IfModule mod_headers.c>
+    Header set Cache-Control "public, max-age=31536000, immutable" env=VZ_IMMUTABLE
+    Header set Cache-Control "public, max-age=31536000, immutable" env=REDIRECT_VZ_IMMUTABLE
+</IfModule>
+
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/html text/css text/plain text/xml application/javascript application/json application/xml image/svg+xml
+</IfModule>
